@@ -64,31 +64,27 @@ Data Flow:
 
 ## Quick Start
 
-### 1. Fork this repo
-
-Fork this repository on GitHub and note your username.
-
-### 2. Install on the Brain computer
+### 1. Install on the Brain computer
 
 Open an **Advanced Computer** in-game and run:
 
 ```
-wget run https://raw.githubusercontent.com/YOURNAME/cc-turtle-agent/main/install.lua
+wget run https://raw.githubusercontent.com/UnHeardCoder/cc-turtle-agent/main/install.lua
 ```
 
 Select `b` for brain when prompted.
 
-### 3. Install on each Turtle
+### 2. Install on each Turtle
 
 Open each **Turtle** in-game and run:
 
 ```
-wget run https://raw.githubusercontent.com/YOURNAME/cc-turtle-agent/main/install.lua
+wget run https://raw.githubusercontent.com/UnHeardCoder/cc-turtle-agent/main/install.lua
 ```
 
 Select `t` for turtle when prompted.
 
-### 4. Configure API keys
+### 3. Configure API keys
 
 On **every** computer/turtle, edit `shared/config.lua`:
 
@@ -101,9 +97,8 @@ Fill in:
 - `config.tavily_key` — your Tavily API key
 - `config.brain_id` — the computer ID of your brain (run `id` on the brain)
 - `config.model` — any model on OpenRouter (default: `anthropic/claude-3.5-haiku-20241022`)
-- `config.repo` — your forked repo's raw URL
 
-### 5. Reboot everything
+### 4. Reboot everything
 
 ```
 reboot
@@ -143,7 +138,7 @@ to specific locations.
 To pull the latest code without losing your world data or API keys:
 
 ```
-wget run https://raw.githubusercontent.com/YOURNAME/cc-turtle-agent/main/update.lua
+wget run https://raw.githubusercontent.com/UnHeardCoder/cc-turtle-agent/main/update.lua
 ```
 
 Or if you already have `update.lua` on disk:

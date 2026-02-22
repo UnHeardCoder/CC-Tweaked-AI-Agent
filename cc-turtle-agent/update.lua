@@ -4,7 +4,7 @@
 -- ============================================================
 -- CONFIGURATION — Must match install.lua
 -- ============================================================
-local REPO = "https://raw.githubusercontent.com/YOURNAME/cc-turtle-agent/main"
+local REPO = "https://raw.githubusercontent.com/UnHeardCoder/cc-turtle-agent/main"
 
 -- All code files that can be updated (NO data files, NO config)
 local SHARED_FILES = {

@@ -18,7 +18,6 @@ config.brain_id = 0
 config.model = "anthropic/claude-3.5-haiku-20241022"
 
 -- GitHub raw content base URL for your fork
--- Change YOURNAME to your GitHub username after forking
-config.repo = "https://raw.githubusercontent.com/YOURNAME/cc-turtle-agent/main"
+config.repo = "https://raw.githubusercontent.com/UnHeardCoder/cc-turtle-agent/main"
 
 return config
