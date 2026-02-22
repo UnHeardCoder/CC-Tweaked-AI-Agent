@@ -1,0 +1,20 @@
+{
+  "machines": {
+    "furnace": { "x": 10, "y": 64, "z": 5, "label": "main smelter" },
+    "crafting_table": { "x": 12, "y": 64, "z": 5, "label": "crafter" },
+    "chest_input": { "x": 14, "y": 64, "z": 5, "label": "ore input" },
+    "chest_output": { "x": 16, "y": 64, "z": 5, "label": "ingot output" }
+  },
+  "items": {
+    "iron_ore": { "location": "chest_input", "qty": 64 },
+    "iron_ingot": { "location": "chest_output", "qty": 32 }
+  },
+  "known_ores": {},
+  "known_paths": {},
+  "failed_attempts": [],
+  "turtle_roles": {
+    "1": "miner",
+    "2": "crafter",
+    "3": "scout"
+  }
+}

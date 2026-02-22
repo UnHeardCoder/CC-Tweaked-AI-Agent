@@ -1,0 +1,10 @@
+# Real API keys - never commit
+src/shared/config.lua
+
+# Runtime data - per world
+data/world.json
+data/queue.json
+data/logs/
+
+# Backups
+*.bak
