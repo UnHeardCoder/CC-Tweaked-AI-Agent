@@ -69,7 +69,7 @@ Data Flow:
 Open an **Advanced Computer** in-game and run:
 
 ```
-wget run https://raw.githubusercontent.com/UnHeardCoder/cc-turtle-agent/main/install.lua
+wget run https://raw.githubusercontent.com/UnHeardCoder/CC-Tweaked-AI-Agent/main/cc-turtle-agent/install.lua
 ```
 
 Select `b` for brain when prompted.
@@ -79,7 +79,7 @@ Select `b` for brain when prompted.
 Open each **Turtle** in-game and run:
 
 ```
-wget run https://raw.githubusercontent.com/UnHeardCoder/cc-turtle-agent/main/install.lua
+wget run https://raw.githubusercontent.com/UnHeardCoder/CC-Tweaked-AI-Agent/main/cc-turtle-agent/install.lua
 ```
 
 Select `t` for turtle when prompted.
@@ -138,7 +138,7 @@ to specific locations.
 To pull the latest code without losing your world data or API keys:
 
 ```
-wget run https://raw.githubusercontent.com/UnHeardCoder/cc-turtle-agent/main/update.lua
+wget run https://raw.githubusercontent.com/UnHeardCoder/CC-Tweaked-AI-Agent/main/cc-turtle-agent/update.lua
 ```
 
 Or if you already have `update.lua` on disk:

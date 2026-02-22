@@ -5,7 +5,7 @@
 -- ============================================================
 -- CONFIGURATION — Change this to your GitHub raw content URL
 -- ============================================================
-local REPO = "https://raw.githubusercontent.com/UnHeardCoder/cc-turtle-agent/main"
+local REPO = "https://raw.githubusercontent.com/UnHeardCoder/CC-Tweaked-AI-Agent/main/cc-turtle-agent"
 
 -- Files to download for the brain computer
 local BRAIN_FILES = {
