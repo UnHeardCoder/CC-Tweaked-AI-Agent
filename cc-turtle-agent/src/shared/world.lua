@@ -13,7 +13,9 @@ local function defaultWorld()
         known_ores = {},
         known_paths = {},
         failed_attempts = {},
-        turtle_roles = {}
+        turtle_roles = {},
+        knowledge = {},
+        completed_tasks = {}
     }
 end
 

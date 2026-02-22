@@ -1,4 +1,4 @@
--- install.lua — Bootstrap installer for CC:Tweaked AI Turtle Agent
+-- install.lua — Bootstrap installer for CC:Tweaked AI Agent
 -- Run this with: wget run <repo_url>/install.lua
 -- It downloads all project files and sets up the computer.
 
@@ -7,10 +7,11 @@
 -- ============================================================
 local REPO = "https://raw.githubusercontent.com/UnHeardCoder/CC-Tweaked-AI-Agent/main/cc-turtle-agent"
 
--- Files to download for the brain computer
+-- Files to download for the brain computer (self-coding AI)
 local BRAIN_FILES = {
     { remote = "src/brain/startup.lua",    local_path = "startup.lua" },
     { remote = "src/shared/config.lua",    local_path = "shared/config.lua" },
+    { remote = "src/shared/coder.lua",     local_path = "shared/coder.lua" },
     { remote = "src/shared/agent.lua",     local_path = "shared/agent.lua" },
     { remote = "src/shared/ai.lua",        local_path = "shared/ai.lua" },
     { remote = "src/shared/search.lua",    local_path = "shared/search.lua" },
@@ -64,7 +65,7 @@ end
 -- ============================================================
 
 print("========================================")
-print("  CC:Tweaked AI Turtle Agent Installer")
+print("  CC:Tweaked AI Agent Installer")
 print("========================================")
 print()
 
@@ -73,7 +74,9 @@ local role = settings.get("agent.role")
 if not role then
     print("What type of computer is this?")
     print("  b = Brain (advanced computer)")
+    print("      Self-coding AI, no turtles needed!")
     print("  t = Turtle")
+    print("      Autonomous turtle agent")
     write("> ")
     local input = read()
     if input == "b" or input == "B" or input == "brain" then
@@ -126,7 +129,7 @@ if not fs.exists("shared/config.lua") then
         print()
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print("!! IMPORTANT: Edit shared/config.lua !!")
-        print("!! Add your Anthropic and Tavily keys !!")
+        print("!! Add your OpenRouter and Tavily keys !!")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     end
 end
@@ -146,9 +149,11 @@ print()
 if role == "brain" then
     print("Next steps:")
     print("  1. Edit shared/config.lua with your API keys")
-    print("  2. Attach an advanced monitor")
-    print("  3. Attach a wireless modem")
-    print("  4. Reboot (or wait 3 seconds)")
+    print("  2. Attach an advanced monitor (recommended)")
+    print("  3. Reboot (or wait 3 seconds)")
+    print()
+    print("No turtles needed! The AI can code and")
+    print("improve itself right from this computer.")
 else
     print("Next steps:")
     print("  1. Edit shared/config.lua with your API keys")

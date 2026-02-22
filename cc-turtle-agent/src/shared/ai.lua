@@ -9,10 +9,12 @@ local API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 -- Send a raw message to the AI via OpenRouter
 -- Returns response text string, or nil + error string
-function ai.ask(system_prompt, user_message)
+function ai.ask(system_prompt, user_message, max_tokens)
+    max_tokens = max_tokens or 1024
+
     local body = textutils.serializeJSON({
         model = config.model,
-        max_tokens = 1024,
+        max_tokens = max_tokens,
         messages = {
             { role = "system", content = system_prompt },
             { role = "user",   content = user_message }
@@ -161,6 +163,146 @@ Confidence is 0.0 to 1.0 indicating how sure you are this is the right next step
 
     if not parsed then
         return nil, "Failed to parse AI response as JSON: " .. response:sub(1, 100)
+    end
+
+    return parsed
+end
+
+-- Coding-focused reasoning for the self-coding brain agent
+-- Returns parsed table { thought, action, params } or nil
+function ai.codeReason(goal, observations, world_data, history)
+    local system_prompt = [[You are an AI coding agent running on a CC:Tweaked computer in Minecraft.
+You can read, write, and edit Lua files. You can run code. You can search the web.
+You can improve your own source code and create new programs.
+
+You are running on an Advanced Computer with an attached monitor.
+The computer uses CC:Tweaked (ComputerCraft for Minecraft) with Lua 5.1.
+
+Available CC:Tweaked APIs you can use in code:
+- fs: file system (fs.open, fs.list, fs.exists, fs.makeDir, fs.delete, fs.combine)
+- http: HTTP requests (http.get, http.post)
+- os: timers, events, sleep (os.sleep, os.startTimer, os.pullEvent)
+- term: terminal output (term.write, term.clear, term.setCursorPos, term.setTextColor)
+- textutils: JSON, serialization (textutils.serializeJSON, textutils.unserializeJSON)
+- colors: color constants (colors.red, colors.white, colors.lime, etc.)
+- peripheral: device access (peripheral.find, peripheral.wrap)
+- rednet: wireless networking
+- shell: run programs (shell.run)
+- settings: persistent settings
+- gps: GPS positioning
+- turtle: turtle control (only available on turtle computers, NOT on this computer)
+- redstone: redstone signals (redstone.setOutput, redstone.getInput)
+- paintutils: drawing to terminal/monitor
+
+Available actions you can take:
+- read_file: Read a file. Params: {"path": "filename"}
+- write_file: Create/overwrite a file. Params: {"path": "filename", "content": "code here"}
+- edit_file: Find and replace text in a file (plain text, not pattern). Params: {"path": "filename", "find": "old text", "replace": "new text"}
+- list_files: List directory contents. Params: {"path": "/"}
+- delete_file: Delete a file. Params: {"path": "filename"}
+- run_code: Execute Lua code directly and see output. Params: {"code": "print('hello')"}
+- run_file: Execute a Lua file. Params: {"path": "filename"}
+- search_web: Search the internet for info. Params: {"query": "search terms"}
+- learn: Store knowledge for future tasks. Params: {"topic": "name", "info": "what you learned"}
+- recall: Retrieve stored knowledge. Params: {"topic": "name"} or {} to list all topics
+- task_complete: Finish successfully. Params: {"summary": "what was accomplished"}
+- task_failed: Give up. Params: {"reason": "why it failed"}
+
+IMPORTANT RULES:
+1. Respond with ONLY valid JSON. No markdown, no backticks, no explanation outside JSON.
+2. Write clean Lua code for CC:Tweaked (Lua 5.1). Use fs API not io. Use textutils not json.
+3. You CAN modify your own source files (shared/*.lua, startup.lua) to improve yourself.
+4. Test code after writing it with run_code or run_file.
+5. If something fails, try a different approach.
+6. Use learn/recall to build up knowledge over time.
+7. When writing multi-line code in write_file content, use \n for newlines.
+8. The edit_file action uses plain text matching (not patterns/regex).
+
+Respond in exactly this JSON format:
+{"thought": "your reasoning about what to do next", "action": "action_name", "params": {}}]]
+
+    -- Build observation text
+    local obs_text = "Computer state:\n"
+    for k, v in pairs(observations) do
+        obs_text = obs_text .. "- " .. tostring(k) .. ": "
+            .. tostring(v) .. "\n"
+    end
+
+    -- Include stored knowledge
+    local knowledge_text = ""
+    if world_data and world_data.knowledge then
+        local entries = {}
+        for topic, info in pairs(world_data.knowledge) do
+            table.insert(entries, topic .. ": "
+                .. tostring(info):sub(1, 100))
+        end
+        if #entries > 0 then
+            knowledge_text = "Stored knowledge:\n"
+                .. table.concat(entries, "\n") .. "\n\n"
+        end
+    end
+
+    -- Include recently completed tasks
+    local past_text = ""
+    if world_data and world_data.completed_tasks then
+        local recent = {}
+        local start = math.max(1, #world_data.completed_tasks - 5)
+        for i = start, #world_data.completed_tasks do
+            local t = world_data.completed_tasks[i]
+            table.insert(recent, t.goal .. " -> "
+                .. tostring(t.summary))
+        end
+        if #recent > 0 then
+            past_text = "Recently completed tasks:\n"
+                .. table.concat(recent, "\n") .. "\n\n"
+        end
+    end
+
+    -- Build action history for this task
+    local hist_text = ""
+    if history and #history > 0 then
+        hist_text = "Actions taken so far in this task:\n"
+        local start = math.max(1, #history - 8)
+        for i = start, #history do
+            local h = history[i]
+            local label = tostring(h.action)
+            if h.params and h.params.path then
+                label = label .. " (" .. h.params.path .. ")"
+            end
+            hist_text = hist_text .. "- Step " .. i .. ": "
+                .. label .. " -> "
+                .. tostring(h.result):sub(1, 200) .. "\n"
+        end
+    end
+
+    local user_message = "GOAL: " .. tostring(goal) .. "\n\n"
+        .. obs_text .. "\n"
+        .. knowledge_text
+        .. past_text
+        .. hist_text .. "\n"
+        .. "What is the single next action to take?"
+
+    -- Use higher token limit for coding (need room for code content)
+    local response, err = ai.ask(system_prompt, user_message, 4096)
+    if not response then
+        return nil, err
+    end
+
+    -- Parse JSON response
+    local parsed = textutils.unserializeJSON(response)
+    if not parsed then
+        -- Try to extract JSON if wrapped in extra text
+        local json_start = response:find("{")
+        local json_end = response:find("}[^}]*$")
+        if json_start and json_end then
+            parsed = textutils.unserializeJSON(
+                response:sub(json_start, json_end))
+        end
+    end
+
+    if not parsed then
+        return nil, "Failed to parse AI response: "
+            .. response:sub(1, 100)
     end
 
     return parsed
