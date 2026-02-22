@@ -8,24 +8,39 @@ local world = require("shared/world")
 
 local coder = {}
 
+-- Files the AI must never read/write (contain secrets or are critical)
+local PROTECTED_FILES = {
+    ["shared/config.lua"] = true,
+    ["config.lua"] = true,
+}
+
+-- Check if a path is protected
+local function isProtected(path)
+    if not path then return false end
+    -- Normalize: remove leading slash
+    local normalized = path:gsub("^/+", "")
+    return PROTECTED_FILES[normalized] == true
+end
+
 -- Gather current state of the computer
 local function observe()
     local obs = {}
 
-    -- List files on the computer (excluding rom/)
+    -- List files on the computer (excluding rom/ and protected files)
     local function listDir(dir, prefix)
         local items = {}
         if not fs.exists(dir) then return items end
         for _, name in ipairs(fs.list(dir)) do
             local path = fs.combine(dir, name)
+            local display_path = prefix .. name
             if fs.isDir(path) then
                 if name ~= "rom" and name ~= ".git" then
                     for _, sub in ipairs(listDir(path, prefix .. name .. "/")) do
                         table.insert(items, sub)
                     end
                 end
-            else
-                table.insert(items, prefix .. name)
+            elseif not isProtected(display_path) then
+                table.insert(items, display_path)
             end
         end
         return items
@@ -47,6 +62,9 @@ local function executeAction(action, params)
     if action == "read_file" then
         local path = params.path
         if not path then return false, "no path specified" end
+        if isProtected(path) then
+            return false, path .. " is protected (contains API keys)"
+        end
         if not fs.exists(path) then return false, "file not found: " .. path end
         if fs.isDir(path) then return false, "path is a directory" end
         local f = fs.open(path, "r")
@@ -63,6 +81,9 @@ local function executeAction(action, params)
         local path = params.path
         local content = params.content
         if not path then return false, "no path specified" end
+        if isProtected(path) then
+            return false, path .. " is protected (contains API keys)"
+        end
         if not content then return false, "no content specified" end
         local dir = fs.getDir(path)
         if dir and dir ~= "" and not fs.exists(dir) then
@@ -80,6 +101,9 @@ local function executeAction(action, params)
         local replace_str = params.replace or ""
         if not path or not find_str then
             return false, "need path and find params"
+        end
+        if isProtected(path) then
+            return false, path .. " is protected (contains API keys)"
         end
         if not fs.exists(path) then return false, "file not found: " .. path end
         local f = fs.open(path, "r")
@@ -116,7 +140,7 @@ local function executeAction(action, params)
         local path = params.path
         if not path then return false, "no path specified" end
         if not fs.exists(path) then return false, "not found: " .. path end
-        if path == "startup.lua" or path == "shared/config.lua" then
+        if isProtected(path) or path == "startup.lua" then
             return false, "cannot delete critical system file"
         end
         fs.delete(path)
@@ -252,6 +276,9 @@ function coder.run(goal, display, max_steps)
 
     display("task", goal, "cyan")
 
+    local repeat_count = 0
+    local last_action_key = ""
+
     for step = 1, max_steps do
         display("step", "Step " .. step .. "/" .. max_steps, "white")
 
@@ -269,6 +296,28 @@ function coder.run(goal, display, max_steps)
             })
             os.sleep(2)
             goto continue
+        end
+
+        -- Loop detection: if same action+path fails 3 times, inject a warning
+        local action_key = decision.action
+            .. ":" .. tostring(decision.params and decision.params.path or "")
+        if action_key == last_action_key then
+            repeat_count = repeat_count + 1
+        else
+            repeat_count = 1
+            last_action_key = action_key
+        end
+        if repeat_count >= 3 then
+            display("error", "Loop detected: same action repeated "
+                .. repeat_count .. " times. Injecting hint.", "red")
+            table.insert(history, {
+                action = "SYSTEM_WARNING",
+                result = "You are stuck in a loop repeating '"
+                    .. decision.action .. "'. Try a completely "
+                    .. "different approach or use task_complete/"
+                    .. "task_failed to finish.",
+                success = false
+            })
         end
 
         display("think", decision.thought, "yellow")

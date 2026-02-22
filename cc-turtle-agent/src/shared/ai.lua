@@ -212,11 +212,14 @@ IMPORTANT RULES:
 1. Respond with ONLY valid JSON. No markdown, no backticks, no explanation outside JSON.
 2. Write clean Lua code for CC:Tweaked (Lua 5.1). Use fs API not io. Use textutils not json.
 3. You CAN modify your own source files (shared/*.lua, startup.lua) to improve yourself.
-4. Test code after writing it with run_code or run_file.
-5. If something fails, try a different approach.
-6. Use learn/recall to build up knowledge over time.
-7. When writing multi-line code in write_file content, use \n for newlines.
-8. The edit_file action uses plain text matching (not patterns/regex).
+4. NEVER touch shared/config.lua — it contains API keys and is protected. Do not read, write, or edit it.
+5. Test code after writing it with run_code or run_file.
+6. If something fails, try a DIFFERENT approach. Do NOT repeat the same failing action more than twice.
+7. Use learn/recall to build up knowledge over time.
+8. When writing multi-line code in write_file content, use \n for newlines.
+9. The edit_file action uses plain text matching (not patterns/regex).
+10. If an action returns an error saying a file is protected, move on — do not retry.
+11. Focus on the user's actual task. Do not get sidetracked by config files or system setup.
 
 Respond in exactly this JSON format:
 {"thought": "your reasoning about what to do next", "action": "action_name", "params": {}}]]
