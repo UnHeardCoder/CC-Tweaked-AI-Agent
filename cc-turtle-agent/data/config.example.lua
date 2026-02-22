@@ -4,8 +4,8 @@
 
 local config = {}
 
--- Anthropic API key — get one at https://console.anthropic.com/
-config.anthropic_key = "sk-ant-YOUR_KEY_HERE"
+-- OpenRouter API key — get one at https://openrouter.ai/keys
+config.openrouter_key = "sk-or-v1-YOUR_KEY_HERE"
 
 -- Tavily API key — get one at https://tavily.com/
 config.tavily_key = "tvly-YOUR_KEY_HERE"
@@ -13,8 +13,9 @@ config.tavily_key = "tvly-YOUR_KEY_HERE"
 -- CC computer ID of the brain (run `id` on the brain computer to find it)
 config.brain_id = 0
 
--- Claude model to use (haiku for speed and low cost)
-config.model = "claude-haiku-3-5-20241022"
+-- Model to use via OpenRouter (see https://openrouter.ai/models)
+-- Using Claude 3.5 Haiku for speed and low cost
+config.model = "anthropic/claude-3.5-haiku-20241022"
 
 -- GitHub raw content base URL for your fork
 -- Change YOURNAME to your GitHub username after forking

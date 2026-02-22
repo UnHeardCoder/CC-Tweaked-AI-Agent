@@ -5,7 +5,7 @@
 An AI-powered turtle agent network for CC:Tweaked (ComputerCraft) running in
 FTB StoneBlock 4 (Minecraft 1.21.1 NeoForge). A "Brain" advanced computer
 orchestrates multiple turtles, each running a local ReAct agent loop powered
-by the Anthropic Claude API.
+by AI models via OpenRouter (Claude, GPT, Gemini, and more).
 
 ## Environment
 
@@ -57,7 +57,7 @@ Each agent step follows Observe → Reason → Act → Report:
 
 1. **Observe** — Gather current state: facing direction, fuel level,
    inventory summary, blocks in front/above/below.
-2. **Reason** — Send observations + world context + goal to Claude API.
+2. **Reason** — Send observations + world context + goal to OpenRouter API.
    AI returns `{ thought, action, params, confidence }`.
 3. **Act** — Dispatch the chosen action (move, dig, place, search, etc.).
 4. **Report** — Send result back to the brain via rednet.
@@ -72,7 +72,7 @@ or the step limit is reached.
 | `src/brain/startup.lua` | Brain main loop — queue processing, task decomposition, turtle management |
 | `src/turtle/startup.lua` | Turtle agent loop — listens for tasks, runs agent, reports back |
 | `src/shared/agent.lua` | ReAct loop — observe/reason/act/report cycle |
-| `src/shared/ai.lua` | Anthropic Claude API calls |
+| `src/shared/ai.lua` | OpenRouter API calls (supports any model) |
 | `src/shared/search.lua` | Tavily web search integration |
 | `src/shared/world.lua` | world.json persistence helpers |
 | `src/shared/queue.lua` | File-backed FIFO command queue |

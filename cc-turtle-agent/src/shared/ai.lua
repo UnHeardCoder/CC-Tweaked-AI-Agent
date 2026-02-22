@@ -1,28 +1,27 @@
--- shared/ai.lua — All Anthropic Claude API calls
--- Handles raw API messaging and structured reasoning prompts
+-- shared/ai.lua — All AI API calls via OpenRouter
+-- Uses OpenRouter's OpenAI-compatible endpoint to access Claude and other models
 
 local config = require("shared/config")
 
 local ai = {}
 
-local API_URL = "https://api.anthropic.com/v1/messages"
+local API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
--- Send a raw message to the Claude API
+-- Send a raw message to the AI via OpenRouter
 -- Returns response text string, or nil + error string
 function ai.ask(system_prompt, user_message)
     local body = textutils.serializeJSON({
         model = config.model,
         max_tokens = 1024,
-        system = system_prompt,
         messages = {
-            { role = "user", content = user_message }
+            { role = "system", content = system_prompt },
+            { role = "user",   content = user_message }
         }
     })
 
     local headers = {
-        ["x-api-key"] = config.anthropic_key,
-        ["anthropic-version"] = "2023-06-01",
-        ["content-type"] = "application/json"
+        ["Authorization"] = "Bearer " .. config.openrouter_key,
+        ["Content-Type"]  = "application/json"
     }
 
     local response, err = http.post(API_URL, body, headers)
@@ -46,9 +45,11 @@ function ai.ask(system_prompt, user_message)
         return nil, msg
     end
 
-    -- Extract text from content blocks
-    if data.content and data.content[1] and data.content[1].text then
-        return data.content[1].text
+    -- OpenRouter returns OpenAI-compatible format: choices[1].message.content
+    if data.choices and data.choices[1]
+        and data.choices[1].message
+        and data.choices[1].message.content then
+        return data.choices[1].message.content
     end
 
     return nil, "No text in API response"

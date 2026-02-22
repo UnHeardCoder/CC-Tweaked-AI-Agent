@@ -2,8 +2,8 @@
 
 An AI-powered turtle agent network for [CC:Tweaked](https://tweaked.cc/) in
 **FTB StoneBlock 4** (Minecraft 1.21.1 NeoForge). A "Brain" advanced computer
-orchestrates multiple turtles, each running a ReAct agent loop powered by the
-**Anthropic Claude API**. Turtles can mine, craft, build, explore, and look up
+orchestrates multiple turtles, each running a ReAct agent loop powered by AI
+via **OpenRouter** (Claude, GPT, Gemini, and more). Turtles can mine, craft, build, explore, and look up
 recipes via web search — all driven by natural language commands.
 
 ## Architecture
@@ -24,7 +24,7 @@ recipes via web search — all driven by natural language commands.
 │  └──────────┘  └──────────┘  └───────────┘ │
 │        │            │                       │
 │        │     ┌──────┴──────┐                │
-│        │     │  Claude API │                │
+│        │     │ OpenRouter  │                │
 │        │     └──────┬──────┘                │
 │        │            │                       │
 │  ┌─────┴────────────┴─────────────┐         │
@@ -47,7 +47,7 @@ recipes via web search — all driven by natural language commands.
 
 Data Flow:
   world.json ←→ Brain ←rednet→ Turtles
-  Claude API ←http→ Brain & Turtles
+  OpenRouter ←http→ Brain & Turtles
   Tavily API ←http→ Turtles (web search)
 ```
 
@@ -58,7 +58,7 @@ Data Flow:
   (`computercraft-server.toml` → `http.enabled = true`)
 - **Wireless Modems** on the brain and all turtles
 - **Advanced Monitor** attached to the brain (recommended: 4x3 block)
-- An **Anthropic API key** — [sign up here](https://console.anthropic.com/)
+- An **OpenRouter API key** — [sign up here](https://openrouter.ai/keys)
 - A **Tavily API key** — [sign up here](https://tavily.com/)
 - Optional: GPS cluster for coordinate tracking
 
@@ -97,9 +97,10 @@ edit shared/config.lua
 ```
 
 Fill in:
-- `config.anthropic_key` — your Anthropic API key
+- `config.openrouter_key` — your OpenRouter API key
 - `config.tavily_key` — your Tavily API key
 - `config.brain_id` — the computer ID of your brain (run `id` on the brain)
+- `config.model` — any model on OpenRouter (default: `anthropic/claude-3.5-haiku-20241022`)
 - `config.repo` — your forked repo's raw URL
 
 ### 5. Reboot everything
@@ -159,7 +160,7 @@ update
 ├── shared/
 │   ├── config.lua       ← Your API keys (local only, not in git)
 │   ├── agent.lua        ← ReAct loop engine
-│   ├── ai.lua           ← Claude API integration
+│   ├── ai.lua           ← OpenRouter API integration
 │   ├── search.lua       ← Tavily web search
 │   ├── world.lua        ← World knowledge persistence
 │   ├── queue.lua        ← Command queue (brain only)
@@ -176,7 +177,7 @@ update
 Each turtle runs an **Observe → Reason → Act → Report** cycle:
 
 1. **Observe**: Read fuel level, inventory, surrounding blocks
-2. **Reason**: Send observations + goal + world context to Claude API;
+2. **Reason**: Send observations + goal + world context to OpenRouter API;
    AI returns `{ thought, action, params, confidence }`
 3. **Act**: Execute the chosen action (move, dig, place, search, etc.)
 4. **Report**: Send result back to the brain via rednet
@@ -193,7 +194,7 @@ use `equip` to place it on the left or right side.
 **"HTTP error" or API calls failing**
 - Check that HTTP is enabled in `computercraft-server.toml`
 - Verify your API keys in `shared/config.lua`
-- Make sure your server can reach `api.anthropic.com` and `api.tavily.com`
+- Make sure your server can reach `openrouter.ai` and `api.tavily.com`
 
 **"Failed to parse API response"**
 - The AI model may have returned unexpected output. Check `data/logs/` for
@@ -210,18 +211,23 @@ use `equip` to place it on the left or right side.
 
 ## API Costs
 
-This project uses `claude-haiku-3-5-20241022` by default for fast, cheap
-responses. Each turtle step makes one API call. Typical costs:
+This project uses `anthropic/claude-3.5-haiku-20241022` via OpenRouter by default
+for fast, cheap responses. Each turtle step makes one API call. Typical costs:
 
 - ~$0.001 per reasoning step
 - A 50-step task costs roughly $0.05
 - Idle turtles make zero API calls
 
-You can monitor usage at [console.anthropic.com](https://console.anthropic.com/).
+You can swap models anytime by changing `config.model` — OpenRouter supports
+hundreds of models including Claude, GPT-4o, Gemini, Llama, Mistral, and more.
+Browse available models at [openrouter.ai/models](https://openrouter.ai/models).
+
+Monitor your usage at [openrouter.ai/activity](https://openrouter.ai/activity).
 
 ## Links
 
-- [Anthropic API](https://console.anthropic.com/) — Claude API keys
+- [OpenRouter](https://openrouter.ai/keys) — API keys (access Claude, GPT, Gemini, and more)
+- [OpenRouter Models](https://openrouter.ai/models) — Browse available models
 - [Tavily](https://tavily.com/) — Web search API keys
 - [CC:Tweaked Docs](https://tweaked.cc/) — ComputerCraft API reference
 - [FTB StoneBlock 4](https://www.feed-the-beast.com/) — Modpack info
