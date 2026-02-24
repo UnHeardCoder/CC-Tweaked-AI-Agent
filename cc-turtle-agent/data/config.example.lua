@@ -18,6 +18,6 @@ config.brain_id = 0
 config.model = "anthropic/claude-3.5-haiku-20241022"
 
 -- GitHub raw content base URL for your fork
-config.repo = "https://raw.githubusercontent.com/UnHeardCoder/CC-Tweaked-AI-Agent/main/cc-turtle-agent"
+config.repo = "https://raw.githubusercontent.com/UnHeardCoder/CC-Tweaked-AI-Agent/claude/cc-tweaked-ai-turtle-zhVTQ/cc-turtle-agent"
 
 return config
