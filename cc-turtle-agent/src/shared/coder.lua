@@ -359,6 +359,26 @@ local function executeAction(action, params)
             return true, "no knowledge stored yet"
         end
 
+    elseif action == "send_turtle_task" then
+        local turtle_id = params.turtle_id
+        local task_goal = params.goal
+        local max_steps = params.max_steps or 50
+        if not turtle_id then
+            return false, "need turtle_id param"
+        end
+        if not task_goal then
+            return false, "need goal param"
+        end
+        local net_mod = require("shared/net")
+        local payload = textutils.serializeJSON({
+            type = "task_assign",
+            goal = task_goal,
+            max_steps = max_steps
+        })
+        rednet.send(turtle_id, payload, "turtle_agent")
+        return true, "sent task to turtle #" .. turtle_id
+            .. ": " .. task_goal
+
     elseif action == "task_complete" then
         return true, "TASK_COMPLETE: "
             .. tostring(params.summary or "done")
@@ -392,10 +412,12 @@ end
 -- goal: what the user wants done
 -- display: function(type, text, color) for monitor output
 -- max_steps: max reasoning iterations
-function coder.run(goal, display, max_steps)
+-- context: optional table with extra context (e.g. turtle_status)
+function coder.run(goal, display, max_steps, context)
     max_steps = max_steps or 30
     local history = {}
     local world_data = world.load()
+    context = context or {}
 
     display = display or function() end
 
@@ -412,7 +434,7 @@ function coder.run(goal, display, max_steps)
 
         -- 2. Reason
         local decision, err = ai.codeReason(
-            goal, observations, world_data, history)
+            goal, observations, world_data, history, context)
         if not decision then
             display("error", "Reasoning failed: "
                 .. tostring(err), "red")

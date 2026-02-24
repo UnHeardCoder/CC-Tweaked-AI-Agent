@@ -170,7 +170,7 @@ end
 
 -- Coding-focused reasoning for the self-coding brain agent
 -- Returns parsed table { thought, action, params } or nil
-function ai.codeReason(goal, observations, world_data, history)
+function ai.codeReason(goal, observations, world_data, history, context)
     local system_prompt = [[You are an AI coding agent running on a CC:Tweaked computer in Minecraft.
 You can read, write, and edit Lua files. You can run code. You can search the web.
 You can improve your own source code and create new programs.
@@ -212,6 +212,7 @@ Available actions you can take:
 - search_web: Search the internet for info. Params: {"query": "search terms"}
 - learn: Store knowledge for future tasks. Params: {"topic": "name", "info": "what you learned"}
 - recall: Retrieve stored knowledge. Params: {"topic": "name"} or {} to list all topics
+- send_turtle_task: Send a task to a connected turtle. Params: {"turtle_id": 2, "goal": "move forward 3 blocks"}
 - task_complete: Finish successfully. Params: {"summary": "what was accomplished"}
 - task_failed: Give up. Params: {"reason": "why it failed"}
 
@@ -238,6 +239,26 @@ Respond in exactly this JSON format:
     for k, v in pairs(observations) do
         obs_text = obs_text .. "- " .. tostring(k) .. ": "
             .. tostring(v) .. "\n"
+    end
+
+    -- Include turtle status from context
+    context = context or {}
+    local turtle_text = ""
+    if context.turtle_status then
+        turtle_text = "Connected turtles: "
+            .. context.turtle_status .. "\n"
+        if context.known_turtles then
+            for id, info in pairs(context.known_turtles) do
+                turtle_text = turtle_text .. "  Turtle #" .. id
+                    .. " — role: " .. tostring(info.role)
+                    .. ", fuel: " .. tostring(info.fuel) .. "\n"
+            end
+        end
+        turtle_text = turtle_text
+            .. "Use send_turtle_task to give a turtle a job.\n\n"
+    else
+        turtle_text = "No turtles connected. "
+            .. "User can type 'scan' to find turtles.\n\n"
     end
 
     -- Include stored knowledge
@@ -289,6 +310,7 @@ Respond in exactly this JSON format:
 
     local user_message = "GOAL: " .. tostring(goal) .. "\n\n"
         .. obs_text .. "\n"
+        .. turtle_text
         .. knowledge_text
         .. past_text
         .. hist_text .. "\n"

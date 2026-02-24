@@ -316,7 +316,9 @@ local function brainLoop()
             mon.log("=== New Task: " .. cmd .. " ===", "cyan")
 
             local run_ok, ok, result = pcall(
-                coder.run, cmd, onCoderEvent, 30)
+                coder.run, cmd, onCoderEvent, 30,
+                { turtle_status = getTurtleStatus(),
+                  known_turtles = known_turtles })
 
             if not run_ok then
                 mon.log("=== CODER CRASHED: "
