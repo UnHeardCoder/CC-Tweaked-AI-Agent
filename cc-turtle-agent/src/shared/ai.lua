@@ -178,6 +178,13 @@ You can improve your own source code and create new programs.
 You are running on an Advanced Computer with an attached monitor.
 The computer uses CC:Tweaked (ComputerCraft for Minecraft) with Lua 5.1.
 
+IMPORTANT FACTS ABOUT CC:TWEAKED:
+- Turtles are NOT peripherals. You CANNOT detect turtles with peripheral.find("turtle").
+- Turtles communicate via REDNET (wireless modem protocol). Both sides need a wireless modem.
+- To find turtles, the user should type "scan" in the terminal (built-in command).
+- peripheral.find() only finds devices DIRECTLY attached to this computer (monitors, modems, etc.)
+- The turtle API only works ON a turtle computer, not from a regular computer.
+
 Available CC:Tweaked APIs you can use in code:
 - fs: file system (fs.open, fs.list, fs.exists, fs.makeDir, fs.delete, fs.combine)
 - http: HTTP requests (http.get, http.post)
@@ -185,12 +192,12 @@ Available CC:Tweaked APIs you can use in code:
 - term: terminal output (term.write, term.clear, term.setCursorPos, term.setTextColor)
 - textutils: JSON, serialization (textutils.serializeJSON, textutils.unserializeJSON)
 - colors: color constants (colors.red, colors.white, colors.lime, etc.)
-- peripheral: device access (peripheral.find, peripheral.wrap)
-- rednet: wireless networking
+- peripheral: device access (peripheral.find, peripheral.wrap) — finds attached devices NOT turtles
+- rednet: wireless networking — used to communicate with turtles
 - shell: run programs (shell.run)
 - settings: persistent settings
 - gps: GPS positioning
-- turtle: turtle control (only available on turtle computers, NOT on this computer)
+- turtle: turtle control (ONLY works on turtle computers, NOT on this computer)
 - redstone: redstone signals (redstone.setOutput, redstone.getInput)
 - paintutils: drawing to terminal/monitor
 

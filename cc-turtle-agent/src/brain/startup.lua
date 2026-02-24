@@ -1,6 +1,6 @@
 -- brain/startup.lua — Self-Coding AI Brain
 -- Standalone AI agent that can write code, learn, and improve itself
--- Works without any turtles — just this computer + monitor
+-- Also supports discovering and communicating with turtles via rednet
 --
 -- SAFETY: This file has crash detection at the top (no requires).
 -- If a module is broken, it auto-restores from backups on reboot.
@@ -29,7 +29,6 @@ local function attemptRecovery()
     for _, name in ipairs(backups) do
         local backup_path = fs.combine("data/backups", name)
         if not fs.isDir(backup_path) then
-            -- Backup names use __ as path separator
             local original = name:gsub("__", "/")
             local dir = fs.getDir(original)
             if dir and dir ~= "" and not fs.exists(dir) then
@@ -43,7 +42,6 @@ local function attemptRecovery()
     return true
 end
 
--- If last boot crashed during module loading, recover
 if fs.exists(CRASH_FLAG) then
     fs.delete(CRASH_FLAG)
     print()
@@ -65,8 +63,6 @@ if fs.exists(CRASH_FLAG) then
     end
 end
 
--- Set crash flag BEFORE loading modules
--- (cleared after successful load)
 if not fs.exists("data") then fs.makeDir("data") end
 local cf = fs.open(CRASH_FLAG, "w")
 if cf then cf.write("1") cf.close() end
@@ -75,17 +71,17 @@ if cf then cf.write("1") cf.close() end
 -- MODULE LOADING (wrapped in pcall for safety)
 -- ======================================================
 
-local config, mon, world_mod, queue, coder
+local config, mon, world_mod, queue, coder, net
 
 local load_ok, load_err = pcall(function()
-    config = require("shared/config")
-    mon    = require("shared/monitor")
+    config    = require("shared/config")
+    mon       = require("shared/monitor")
     world_mod = require("shared/world")
-    queue  = require("shared/queue")
-    coder  = require("shared/coder")
+    queue     = require("shared/queue")
+    coder     = require("shared/coder")
+    net       = require("shared/net")
 end)
 
--- Clear crash flag — modules loaded successfully
 if fs.exists(CRASH_FLAG) then fs.delete(CRASH_FLAG) end
 
 if not load_ok then
@@ -108,10 +104,116 @@ if not load_ok then
 end
 
 -- ======================================================
--- MAIN APPLICATION (modules are loaded and working)
+-- TURTLE TRACKING
 -- ======================================================
 
--- Display callback: routes coder events to monitor
+local known_turtles = {}  -- { [id] = { role, fuel, last_seen } }
+local modem_open = false
+
+-- Try to open rednet modem
+local function openModem()
+    local ok = net.open()
+    modem_open = ok
+    return ok
+end
+
+-- Handle incoming turtle messages
+local function handleTurtleMessage(sender_id, msg)
+    if not msg or not msg.type then return end
+
+    if msg.type == "register" then
+        known_turtles[sender_id] = {
+            role = msg.role or "unknown",
+            fuel = msg.fuel or 0,
+            last_seen = os.clock()
+        }
+        mon.log("Turtle #" .. sender_id .. " connected ("
+            .. (msg.role or "unknown") .. ", fuel: "
+            .. (msg.fuel or "?") .. ")", "lime")
+        -- Save to world
+        local w = world_mod.load()
+        w.turtle_roles = w.turtle_roles or {}
+        w.turtle_roles[tostring(sender_id)] = msg.role
+        world_mod.save(w)
+
+    elseif msg.type == "task_complete" then
+        mon.log("Turtle #" .. sender_id .. " completed: "
+            .. tostring(msg.summary), "lime")
+        if known_turtles[sender_id] then
+            known_turtles[sender_id].last_seen = os.clock()
+        end
+
+    elseif msg.type == "task_failed" then
+        mon.log("Turtle #" .. sender_id .. " FAILED: "
+            .. tostring(msg.reason), "red")
+
+    elseif msg.type == "report" then
+        mon.log("Turtle #" .. sender_id .. ": "
+            .. tostring(msg.message), "white")
+        if known_turtles[sender_id] then
+            known_turtles[sender_id].last_seen = os.clock()
+        end
+
+    elseif msg.type == "discovery" then
+        if msg.machine then
+            world_mod.addMachine(msg.machine.name,
+                msg.machine.x, msg.machine.y,
+                msg.machine.z, msg.machine.label)
+            mon.log("Discovered: " .. msg.machine.name, "lime")
+        end
+    end
+end
+
+-- Scan for turtles by broadcasting a ping
+local function scanForTurtles()
+    if not modem_open then
+        print("No modem found. Attach a wireless modem.")
+        mon.log("Scan failed: no modem", "red")
+        return
+    end
+    mon.log("Scanning for turtles...", "yellow")
+    print("Broadcasting scan ping...")
+    net.broadcast({ type = "ping" })
+    -- Listen for responses for 3 seconds
+    local found = 0
+    local deadline = os.clock() + 3
+    while os.clock() < deadline do
+        local sender, msg = net.receive(
+            deadline - os.clock())
+        if sender and msg then
+            handleTurtleMessage(sender, msg)
+            found = found + 1
+        end
+    end
+    if found == 0 then
+        print("No turtles responded.")
+        print("Make sure the turtle is running and has")
+        print("a wireless modem + the turtle agent code.")
+        mon.log("No turtles found", "yellow")
+    else
+        print("Found " .. found .. " turtle(s).")
+    end
+end
+
+-- Get turtle status summary for the AI
+local function getTurtleStatus()
+    local count = 0
+    local info = {}
+    for id, t in pairs(known_turtles) do
+        count = count + 1
+        table.insert(info, "#" .. id .. " ("
+            .. t.role .. ", fuel:" .. t.fuel .. ")")
+    end
+    if count == 0 then
+        return "No turtles connected"
+    end
+    return count .. " turtle(s): " .. table.concat(info, ", ")
+end
+
+-- ======================================================
+-- MAIN APPLICATION
+-- ======================================================
+
 local function onCoderEvent(dtype, text, color)
     if dtype == "task" then
         mon.setTask(text)
@@ -136,7 +238,6 @@ local function onCoderEvent(dtype, text, color)
     end
 end
 
--- Read player input from the terminal
 local function readPlayerInput()
     while true do
         term.setCursorPos(1, 1)
@@ -148,6 +249,12 @@ local function readPlayerInput()
                 mon.clear()
                 mon.setStatus("AI Brain - Ready")
                 print("Monitor cleared.")
+
+            elseif input == "scan" then
+                scanForTurtles()
+
+            elseif input == "turtles" then
+                print(getTurtleStatus())
 
             elseif input == "knowledge" then
                 local w = world_mod.load()
@@ -180,6 +287,8 @@ local function readPlayerInput()
             elseif input == "help" then
                 print("=== Commands ===")
                 print("  <any text>  - Give the AI a task")
+                print("  scan        - Scan for turtles")
+                print("  turtles     - Show connected turtles")
                 print("  clear       - Clear the monitor")
                 print("  knowledge   - Show what AI has learned")
                 print("  history     - Show completed tasks")
@@ -196,9 +305,9 @@ local function readPlayerInput()
     end
 end
 
--- Main brain loop: pull tasks from queue and run the coder
 local function brainLoop()
     while true do
+        -- Process command queue
         local cmd = queue.pop()
         if cmd then
             mon.setStatus("AI Brain - Working...")
@@ -206,13 +315,10 @@ local function brainLoop()
             mon.log("", "white")
             mon.log("=== New Task: " .. cmd .. " ===", "cyan")
 
-            -- Wrap coder.run in pcall so a runtime crash
-            -- doesn't kill the whole brain
             local run_ok, ok, result = pcall(
                 coder.run, cmd, onCoderEvent, 30)
 
             if not run_ok then
-                -- coder.run itself crashed
                 mon.log("=== CODER CRASHED: "
                     .. tostring(ok) .. " ===", "red")
                 mon.log("The AI may have broken a module."
@@ -226,7 +332,6 @@ local function brainLoop()
             end
 
             mon.setTask("")
-
             if queue.size() > 0 then
                 mon.setStatus("AI Brain - "
                     .. queue.size() .. " tasks remaining")
@@ -235,7 +340,15 @@ local function brainLoop()
             end
         end
 
-        os.sleep(0.5)
+        -- Listen for turtle messages (non-blocking)
+        if modem_open then
+            local sender, msg = net.receive(0.5)
+            if sender and msg then
+                handleTurtleMessage(sender, msg)
+            end
+        else
+            os.sleep(0.5)
+        end
     end
 end
 
@@ -247,29 +360,26 @@ print("Computer ID: " .. os.getComputerID())
 print()
 print("Commands:")
 print("  Type anything  - give the AI a task")
-print("  clear          - clear the monitor")
-print("  knowledge      - show what AI has learned")
-print("  history        - show completed tasks")
-print("  recovery       - restore from backups")
-print("  help           - show all commands")
+print("  scan           - scan for turtles (rednet)")
+print("  turtles        - show connected turtles")
+print("  clear / knowledge / history / recovery / help")
 print()
 
--- Initialize systems
 mon.init()
 world_mod.load()
+openModem()
 
 mon.clear()
 mon.setStatus("AI Brain - Ready")
 mon.log("Brain online - ID #" .. os.getComputerID(), "lime")
 mon.log("Model: " .. config.model, "white")
 mon.log("Safety: syntax check + auto-backup + recovery", "green")
+if modem_open then
+    mon.log("Modem: open (type 'scan' to find turtles)", "cyan")
+else
+    mon.log("Modem: not found (attach one to find turtles)", "yellow")
+end
 mon.log("", "white")
-mon.log("This AI can write code, learn, and improve itself.", "yellow")
-mon.log("Type a task in the terminal to get started.", "cyan")
-mon.log("Examples:", "white")
-mon.log("  write a program that displays the time", "white")
-mon.log("  create a file manager program", "white")
-mon.log("  improve yourself to handle errors better", "white")
+mon.log("Type a task or 'help' to get started.", "cyan")
 
--- Run input reader and brain loop in parallel
 parallel.waitForAll(readPlayerInput, brainLoop)
