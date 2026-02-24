@@ -467,10 +467,12 @@ function coder.run(goal, display, max_steps)
         display("action", action_label, "lime")
 
         -- 3. Act
-        local ok, result = pcall(executeAction,
+        local pcall_ok, ok, result = pcall(executeAction,
             decision.action, decision.params)
-        if not ok then
-            result = "error: " .. tostring(result)
+        if not pcall_ok then
+            -- pcall itself failed (executeAction threw an error)
+            -- ok contains the error message in this case
+            result = "error: " .. tostring(ok)
             ok = false
         end
 
