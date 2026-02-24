@@ -8,6 +8,7 @@ local REPO = "https://raw.githubusercontent.com/UnHeardCoder/CC-Tweaked-AI-Agent
 
 -- All code files that can be updated (NO data files, NO config)
 local SHARED_FILES = {
+    { remote = "src/recovery.lua",         local_path = "recovery.lua" },
     { remote = "src/shared/coder.lua",     local_path = "shared/coder.lua" },
     { remote = "src/shared/agent.lua",     local_path = "shared/agent.lua" },
     { remote = "src/shared/ai.lua",        local_path = "shared/ai.lua" },

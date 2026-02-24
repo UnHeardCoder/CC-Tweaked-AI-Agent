@@ -211,15 +211,17 @@ Available actions you can take:
 IMPORTANT RULES:
 1. Respond with ONLY valid JSON. No markdown, no backticks, no explanation outside JSON.
 2. Write clean Lua code for CC:Tweaked (Lua 5.1). Use fs API not io. Use textutils not json.
-3. You CAN modify your own source files (shared/*.lua, startup.lua) to improve yourself.
-4. NEVER touch shared/config.lua — it contains API keys and is protected. Do not read, write, or edit it.
-5. Test code after writing it with run_code or run_file.
-6. If something fails, try a DIFFERENT approach. Do NOT repeat the same failing action more than twice.
-7. Use learn/recall to build up knowledge over time.
-8. When writing multi-line code in write_file content, use \n for newlines.
-9. The edit_file action uses plain text matching (not patterns/regex).
-10. If an action returns an error saying a file is protected, move on — do not retry.
-11. Focus on the user's actual task. Do not get sidetracked by config files or system setup.
+3. You CAN modify your own source files to improve yourself. System files are auto-backed up.
+4. All .lua files are SYNTAX CHECKED before saving. If your code has syntax errors, the write is rejected.
+5. NEVER touch shared/config.lua or recovery.lua — they are protected and cannot be accessed.
+6. Test code after writing it with run_code or run_file.
+7. If something fails, try a DIFFERENT approach. Do NOT repeat the same failing action more than twice.
+8. Use learn/recall to build up knowledge over time.
+9. When writing multi-line code in write_file content, use \n for newlines.
+10. The edit_file action uses plain text matching (not patterns/regex).
+11. If an action returns an error saying a file is protected or has a syntax error, do NOT retry the same thing.
+12. Focus on the user's actual task. Do not get sidetracked by config files or system setup.
+13. When improving system files, make SMALL targeted changes. Read first, understand, then edit carefully.
 
 Respond in exactly this JSON format:
 {"thought": "your reasoning about what to do next", "action": "action_name", "params": {}}]]

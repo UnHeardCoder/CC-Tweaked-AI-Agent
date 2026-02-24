@@ -1,6 +1,10 @@
 -- shared/coder.lua — Self-coding AI agent loop
 -- Observe files -> Reason -> Write/Edit code -> Learn
 -- Works on the brain computer without any turtles
+--
+-- SAFETY: All .lua writes are syntax-checked before saving.
+-- System files are backed up before modification.
+-- If the AI breaks something, backups auto-restore on reboot.
 
 local ai = require("shared/ai")
 local search = require("shared/search")
@@ -8,18 +12,74 @@ local world = require("shared/world")
 
 local coder = {}
 
--- Files the AI must never read/write (contain secrets or are critical)
+-- Files the AI must never read/write (contain secrets)
 local PROTECTED_FILES = {
     ["shared/config.lua"] = true,
     ["config.lua"] = true,
+    ["recovery.lua"] = true,
 }
 
--- Check if a path is protected
+-- System files that get backed up before any modification
+local SYSTEM_FILES = {
+    ["startup.lua"] = true,
+    ["shared/coder.lua"] = true,
+    ["shared/ai.lua"] = true,
+    ["shared/monitor.lua"] = true,
+    ["shared/world.lua"] = true,
+    ["shared/queue.lua"] = true,
+    ["shared/search.lua"] = true,
+    ["shared/net.lua"] = true,
+    ["shared/agent.lua"] = true,
+    ["update.lua"] = true,
+}
+
+-- Normalize a path: remove leading slashes
+local function normPath(path)
+    if not path then return "" end
+    return path:gsub("^/+", "")
+end
+
+-- Check if a path is protected (no access at all)
 local function isProtected(path)
-    if not path then return false end
-    -- Normalize: remove leading slash
-    local normalized = path:gsub("^/+", "")
-    return PROTECTED_FILES[normalized] == true
+    return PROTECTED_FILES[normPath(path)] == true
+end
+
+-- Check if a path is a system file (needs backup before edit)
+local function isSystemFile(path)
+    return SYSTEM_FILES[normPath(path)] == true
+end
+
+-- Create a backup of a file before modifying it
+local function backupFile(path)
+    path = normPath(path)
+    if not fs.exists(path) then return end
+    if not fs.exists("data/backups") then
+        fs.makeDir("data/backups")
+    end
+    -- Use __ as path separator in backup name
+    local backup_name = path:gsub("/", "__")
+    local backup_path = fs.combine("data/backups", backup_name)
+    if fs.exists(backup_path) then fs.delete(backup_path) end
+    fs.copy(path, backup_path)
+end
+
+-- Restore a file from its backup
+local function restoreFile(path)
+    path = normPath(path)
+    local backup_name = path:gsub("/", "__")
+    local backup_path = fs.combine("data/backups", backup_name)
+    if not fs.exists(backup_path) then return false end
+    if fs.exists(path) then fs.delete(path) end
+    fs.copy(backup_path, path)
+    return true
+end
+
+-- Validate Lua syntax by trying to compile it
+-- Returns true if valid, or false + error message
+local function validateLua(content)
+    local func, err = load(content, "validate")
+    if func then return true end
+    return false, err
 end
 
 -- Gather current state of the computer
@@ -34,8 +94,10 @@ local function observe()
             local path = fs.combine(dir, name)
             local display_path = prefix .. name
             if fs.isDir(path) then
-                if name ~= "rom" and name ~= ".git" then
-                    for _, sub in ipairs(listDir(path, prefix .. name .. "/")) do
+                if name ~= "rom" and name ~= ".git"
+                    and name ~= "data" then
+                    for _, sub in ipairs(
+                        listDir(path, prefix .. name .. "/")) do
                         table.insert(items, sub)
                     end
                 end
@@ -63,17 +125,22 @@ local function executeAction(action, params)
         local path = params.path
         if not path then return false, "no path specified" end
         if isProtected(path) then
-            return false, path .. " is protected (contains API keys)"
+            return false, path .. " is protected"
         end
-        if not fs.exists(path) then return false, "file not found: " .. path end
-        if fs.isDir(path) then return false, "path is a directory" end
+        if not fs.exists(path) then
+            return false, "file not found: " .. path
+        end
+        if fs.isDir(path) then
+            return false, "path is a directory"
+        end
         local f = fs.open(path, "r")
         if not f then return false, "cannot open: " .. path end
         local content = f.readAll()
         f.close()
         if #content > 2000 then
             content = content:sub(1, 2000)
-                .. "\n... (truncated, " .. #content .. " chars total)"
+                .. "\n... (truncated, " .. #content
+                .. " chars total)"
         end
         return true, "FILE " .. path .. ":\n" .. content
 
@@ -82,9 +149,26 @@ local function executeAction(action, params)
         local content = params.content
         if not path then return false, "no path specified" end
         if isProtected(path) then
-            return false, path .. " is protected (contains API keys)"
+            return false, path .. " is protected"
         end
-        if not content then return false, "no content specified" end
+        if not content then
+            return false, "no content specified"
+        end
+
+        -- SAFETY: validate Lua syntax before writing .lua files
+        if path:match("%.lua$") then
+            local valid, syn_err = validateLua(content)
+            if not valid then
+                return false, "SYNTAX ERROR — code rejected, "
+                    .. "file NOT written: " .. tostring(syn_err)
+            end
+        end
+
+        -- Backup system files before overwriting
+        if isSystemFile(path) then
+            backupFile(path)
+        end
+
         local dir = fs.getDir(path)
         if dir and dir ~= "" and not fs.exists(dir) then
             fs.makeDir(dir)
@@ -103,18 +187,38 @@ local function executeAction(action, params)
             return false, "need path and find params"
         end
         if isProtected(path) then
-            return false, path .. " is protected (contains API keys)"
+            return false, path .. " is protected"
         end
-        if not fs.exists(path) then return false, "file not found: " .. path end
+        if not fs.exists(path) then
+            return false, "file not found: " .. path
+        end
         local f = fs.open(path, "r")
         if not f then return false, "cannot read: " .. path end
         local content = f.readAll()
         f.close()
+
         -- Plain string find (no pattern matching)
         local start_idx, end_idx = content:find(find_str, 1, true)
-        if not start_idx then return false, "text not found in file" end
+        if not start_idx then
+            return false, "text not found in file"
+        end
         local new_content = content:sub(1, start_idx - 1)
             .. replace_str .. content:sub(end_idx + 1)
+
+        -- SAFETY: validate Lua syntax before writing .lua files
+        if path:match("%.lua$") then
+            local valid, syn_err = validateLua(new_content)
+            if not valid then
+                return false, "SYNTAX ERROR — edit rejected, "
+                    .. "file NOT changed: " .. tostring(syn_err)
+            end
+        end
+
+        -- Backup system files before overwriting
+        if isSystemFile(path) then
+            backupFile(path)
+        end
+
         f = fs.open(path, "w")
         if not f then return false, "cannot write: " .. path end
         f.write(new_content)
@@ -123,23 +227,31 @@ local function executeAction(action, params)
 
     elseif action == "list_files" then
         local dir = params.path or "/"
-        if not fs.exists(dir) then return false, "directory not found" end
-        if not fs.isDir(dir) then return false, "not a directory" end
+        if not fs.exists(dir) then
+            return false, "directory not found"
+        end
+        if not fs.isDir(dir) then
+            return false, "not a directory"
+        end
         local items = {}
         for _, name in ipairs(fs.list(dir)) do
             local full = fs.combine(dir, name)
             if fs.isDir(full) then
                 table.insert(items, name .. "/")
             else
-                table.insert(items, name .. " (" .. fs.getSize(full) .. "b)")
+                table.insert(items, name
+                    .. " (" .. fs.getSize(full) .. "b)")
             end
         end
-        return true, "files in " .. dir .. ": " .. table.concat(items, ", ")
+        return true, "files in " .. dir .. ": "
+            .. table.concat(items, ", ")
 
     elseif action == "delete_file" then
         local path = params.path
         if not path then return false, "no path specified" end
-        if not fs.exists(path) then return false, "not found: " .. path end
+        if not fs.exists(path) then
+            return false, "not found: " .. path
+        end
         if isProtected(path) or path == "startup.lua" then
             return false, "cannot delete critical system file"
         end
@@ -159,33 +271,44 @@ local function executeAction(action, params)
                 end
                 local line = table.concat(parts, "\t")
                 table.insert(output, line)
-                print(line) -- also show on terminal
+                print(line)
             end
         }, { __index = _G })
         local func, err = load(code, "ai_code", "t", env)
-        if not func then return false, "syntax error: " .. tostring(err) end
+        if not func then
+            return false, "syntax error: " .. tostring(err)
+        end
         local ok, result = pcall(func)
         local out_str = table.concat(output, "\n")
         if ok then
             local msg = "code executed"
-            if #out_str > 0 then msg = msg .. "\nOutput:\n" .. out_str end
-            if result ~= nil then msg = msg .. "\nReturned: " .. tostring(result) end
+            if #out_str > 0 then
+                msg = msg .. "\nOutput:\n" .. out_str
+            end
+            if result ~= nil then
+                msg = msg .. "\nReturned: " .. tostring(result)
+            end
             return true, msg
         else
             local msg = "runtime error: " .. tostring(result)
-            if #out_str > 0 then msg = msg .. "\nOutput before error:\n" .. out_str end
+            if #out_str > 0 then
+                msg = msg .. "\nOutput before error:\n" .. out_str
+            end
             return false, msg
         end
 
     elseif action == "run_file" then
         local path = params.path
         if not path then return false, "no path specified" end
-        if not fs.exists(path) then return false, "file not found: " .. path end
+        if not fs.exists(path) then
+            return false, "file not found: " .. path
+        end
         local ok, err = pcall(shell.run, path)
         if ok then
             return true, "ran " .. path .. " successfully"
         else
-            return false, "error running " .. path .. ": " .. tostring(err)
+            return false, "error running " .. path
+                .. ": " .. tostring(err)
         end
 
     elseif action == "search_web" then
@@ -220,7 +343,8 @@ local function executeAction(action, params)
         if topic then
             local info = w.knowledge[topic]
             if info then
-                return true, "knowledge[" .. topic .. "]: " .. tostring(info)
+                return true, "knowledge[" .. topic
+                    .. "]: " .. tostring(info)
             end
             return false, "no knowledge about: " .. topic
         else
@@ -229,7 +353,8 @@ local function executeAction(action, params)
                 table.insert(topics, k)
             end
             if #topics > 0 then
-                return true, "known topics: " .. table.concat(topics, ", ")
+                return true, "known topics: "
+                    .. table.concat(topics, ", ")
             end
             return true, "no knowledge stored yet"
         end
@@ -289,7 +414,8 @@ function coder.run(goal, display, max_steps)
         local decision, err = ai.codeReason(
             goal, observations, world_data, history)
         if not decision then
-            display("error", "Reasoning failed: " .. tostring(err), "red")
+            display("error", "Reasoning failed: "
+                .. tostring(err), "red")
             table.insert(history, {
                 action = "reason_failed",
                 result = tostring(err)
@@ -298,9 +424,10 @@ function coder.run(goal, display, max_steps)
             goto continue
         end
 
-        -- Loop detection: if same action+path fails 3 times, inject a warning
-        local action_key = decision.action
-            .. ":" .. tostring(decision.params and decision.params.path or "")
+        -- Loop detection: same action+path 3 times = warning
+        local action_key = decision.action .. ":"
+            .. tostring(decision.params
+                and decision.params.path or "")
         if action_key == last_action_key then
             repeat_count = repeat_count + 1
         else
@@ -308,8 +435,8 @@ function coder.run(goal, display, max_steps)
             last_action_key = action_key
         end
         if repeat_count >= 3 then
-            display("error", "Loop detected: same action repeated "
-                .. repeat_count .. " times. Injecting hint.", "red")
+            display("error", "Loop detected — same action "
+                .. repeat_count .. "x. Forcing new approach.", "red")
             table.insert(history, {
                 action = "SYSTEM_WARNING",
                 result = "You are stuck in a loop repeating '"
@@ -318,15 +445,23 @@ function coder.run(goal, display, max_steps)
                     .. "task_failed to finish.",
                 success = false
             })
+            -- After 5 repeats, force-fail the task
+            if repeat_count >= 5 then
+                display("failed",
+                    "Force-stopped: stuck in loop", "red")
+                return false, "force-stopped: stuck in loop"
+            end
         end
 
         display("think", decision.thought, "yellow")
         local action_label = decision.action
         if decision.params then
             if decision.params.path then
-                action_label = action_label .. ": " .. decision.params.path
+                action_label = action_label
+                    .. ": " .. decision.params.path
             elseif decision.params.topic then
-                action_label = action_label .. ": " .. decision.params.topic
+                action_label = action_label
+                    .. ": " .. decision.params.topic
             end
         end
         display("action", action_label, "lime")
@@ -342,7 +477,8 @@ function coder.run(goal, display, max_steps)
         -- Show code being written
         if decision.action == "write_file" and ok
             and decision.params and decision.params.content then
-            display("code", decision.params.path .. " written", "cyan")
+            display("code", decision.params.path
+                .. " written", "cyan")
         end
 
         -- Show result (truncated for display)
@@ -350,7 +486,8 @@ function coder.run(goal, display, max_steps)
         if #display_result > 300 then
             display_result = display_result:sub(1, 300) .. "..."
         end
-        display("result", display_result, ok and "white" or "red")
+        display("result", display_result,
+            ok and "white" or "red")
 
         -- Record in history
         table.insert(history, {

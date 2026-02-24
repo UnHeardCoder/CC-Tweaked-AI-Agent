@@ -10,6 +10,7 @@ local REPO = "https://raw.githubusercontent.com/UnHeardCoder/CC-Tweaked-AI-Agent
 -- Files to download for the brain computer (self-coding AI)
 local BRAIN_FILES = {
     { remote = "src/brain/startup.lua",    local_path = "startup.lua" },
+    { remote = "src/recovery.lua",         local_path = "recovery.lua" },
     { remote = "src/shared/config.lua",    local_path = "shared/config.lua" },
     { remote = "src/shared/coder.lua",     local_path = "shared/coder.lua" },
     { remote = "src/shared/agent.lua",     local_path = "shared/agent.lua" },
@@ -100,6 +101,7 @@ local files = role == "brain" and BRAIN_FILES or TURTLE_FILES
 if not fs.exists("shared") then fs.makeDir("shared") end
 if not fs.exists("data") then fs.makeDir("data") end
 if not fs.exists("data/logs") then fs.makeDir("data/logs") end
+if not fs.exists("data/backups") then fs.makeDir("data/backups") end
 
 -- Download files
 print("Downloading files...")
