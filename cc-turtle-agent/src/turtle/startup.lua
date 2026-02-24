@@ -170,6 +170,11 @@ while true do
         -- Re-register as available after completing
         registerWithBrain()
 
+    elseif msg and msg.type == "ping" then
+        -- Brain is scanning for turtles — respond with register
+        print("[turtle] Ping from #" .. tostring(sender) .. ", responding...")
+        registerWithBrain()
+
     else
         -- No task received — idle behavior
         autoRefuel(200)
