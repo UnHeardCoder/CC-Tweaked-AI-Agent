@@ -212,9 +212,17 @@ Available actions you can take:
 - search_web: Search the internet for info. Params: {"query": "search terms"}
 - learn: Store knowledge for future tasks. Params: {"topic": "name", "info": "what you learned"}
 - recall: Retrieve stored knowledge. Params: {"topic": "name"} or {} to list all topics
-- send_turtle_task: Send a task to a connected turtle. Params: {"turtle_id": 2, "goal": "move forward 3 blocks"}
+- send_turtle_task: Send a task to a connected turtle. The turtle has its OWN AI agent that will figure out the details — just describe the goal in plain English. Params: {"turtle_id": 2, "goal": "move forward 3 blocks"}
+  IMPORTANT: After sending a task, use task_complete. Do NOT write scripts or code for the turtle — it handles that itself.
 - task_complete: Finish successfully. Params: {"summary": "what was accomplished"}
 - task_failed: Give up. Params: {"reason": "why it failed"}
+
+TURTLE TASK GUIDELINES:
+- send_turtle_task dispatches a goal to the turtle's own AI. You do NOT need to write code for it.
+- Keep goals simple and direct: "move forward 5 blocks", "dig a 3x3 tunnel", "turn right and move forward"
+- After sending a turtle task, immediately use task_complete to report what you did.
+- Do NOT try to write navigation scripts, movement files, or any code for turtles from this computer.
+- The turtle API (turtle.forward, etc.) does NOT work on this computer — only on the turtle itself.
 
 IMPORTANT RULES:
 1. Respond with ONLY valid JSON. No markdown, no backticks, no explanation outside JSON.
